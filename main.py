@@ -1,26 +1,99 @@
+import os
 import io
 import joblib
+import gdown
 import pandas as pd
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-app = FastAPI()
+app = FastAPI(
+    title="California House Price Prediction API",
+    description="API for predicting California house prices",
+    version="1.0.0"
+)
 
-model = joblib.load("house_model.joblib")
-features = joblib.load("house_features.joblib")
+# Model and features file paths
+MODEL_PATH = "house_model.joblib"
+FEATURES_PATH = "house_features.joblib"
 
 
+# Download model from Google Drive if it is missing
+if not os.path.exists(MODEL_PATH):
+    file_id = os.getenv("MODEL_FILE_ID")
+
+    if not file_id:
+        raise RuntimeError(
+            "MODEL_FILE_ID environment variable is missing"
+        )
+
+    url = f"https://drive.google.com/uc?id={file_id}"
+
+    output = gdown.download(
+        url,
+        MODEL_PATH,
+        quiet=False
+    )
+
+    if not output or not os.path.exists(MODEL_PATH):
+        raise RuntimeError(
+            "Model download failed. Check your Google Drive link and permissions."
+        )
+
+# Check features file
+if not os.path.exists(FEATURES_PATH):
+    raise FileNotFoundError(
+        f"{FEATURES_PATH} not found. "
+        "Make sure it is included in your GitHub repository."
+    )
+
+# Load model and features
+model = joblib.load(MODEL_PATH)
+features = joblib.load(FEATURES_PATH)
+
+
+# Input validation
 class HouseFeatures(BaseModel):
-    MedInc: float = Field(gt=0, description="Median income in block group")
-    HouseAge: float = Field(gt=0, description="Median house age in block group")
-    AveRooms: float = Field(gt=0, description="Average number of rooms")
-    AveBedrms: float = Field(gt=0, description="Average number of bedrooms")
-    Population: float = Field(gt=0, description="Population in block group")
-    AveOccup: float = Field(gt=0, description="Average occupancy")
-    Latitude: float = Field(gt=0, description="Block group latitude")
-    Longitude: float = Field(lt=0, description="Block group longitude")
+    MedInc: float = Field(
+        gt=0,
+        description="Median income in block group"
+    )
+
+    HouseAge: float = Field(
+        gt=0,
+        description="Median house age in block group"
+    )
+
+    AveRooms: float = Field(
+        gt=0,
+        description="Average number of rooms"
+    )
+
+    AveBedrms: float = Field(
+        gt=0,
+        description="Average number of bedrooms"
+    )
+
+    Population: float = Field(
+        gt=0,
+        description="Population in block group"
+    )
+
+    AveOccup: float = Field(
+        gt=0,
+        description="Average occupancy"
+    )
+
+    Latitude: float = Field(
+        gt=0,
+        description="Block group latitude"
+    )
+
+    Longitude: float = Field(
+        lt=0,
+        description="Block group longitude"
+    )
 
 
 # Home endpoint
@@ -48,9 +121,13 @@ def health():
 @app.post("/predict")
 def predict(house: HouseFeatures):
     try:
-        input_data = pd.DataFrame([house.model_dump()])
+        input_data = pd.DataFrame(
+            [house.model_dump()]
+        )
 
-        predicted = model.predict(input_data)[0]
+        predicted = float(
+            model.predict(input_data)[0]
+        )
 
         price_usd = predicted * 1_000_000
 
@@ -68,7 +145,7 @@ def predict(house: HouseFeatures):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=f"Prediction failed: {str(e)}"
         )
 
 
@@ -76,7 +153,10 @@ def predict(house: HouseFeatures):
 @app.post("/predict_file")
 async def predict_file(file: UploadFile = File(...)):
 
-    if not file.filename or not file.filename.lower().endswith(".csv"):
+    if (
+        not file.filename
+        or not file.filename.lower().endswith(".csv")
+    ):
         raise HTTPException(
             status_code=400,
             detail="Invalid file format. Please upload a CSV file."
@@ -84,7 +164,10 @@ async def predict_file(file: UploadFile = File(...)):
 
     try:
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+
+        df = pd.read_csv(
+            io.BytesIO(contents)
+        )
 
         required_columns = [
             "MedInc",
@@ -114,15 +197,17 @@ async def predict_file(file: UploadFile = File(...)):
                 detail="The uploaded CSV file is empty."
             )
 
-        predictions = model.predict(df[required_columns])
+        predictions = model.predict(
+            df[required_columns]
+        )
 
-        # Convert target values to USD
+        # Convert predicted values to USD
         df["PredictedPrice"] = predictions * 1_000_000
 
         output = df.to_csv(index=False)
 
         return StreamingResponse(
-            io.StringIO(output),
+            io.BytesIO(output.encode("utf-8")),
             media_type="text/csv",
             headers={
                 "Content-Disposition":
@@ -139,3 +224,5 @@ async def predict_file(file: UploadFile = File(...)):
             detail=f"Prediction failed: {str(e)}"
         )
 
+    finally:
+        await file.close()
