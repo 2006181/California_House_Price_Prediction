@@ -91,8 +91,22 @@ Then run:
 ```powershell
 python -m streamlit run app.py
 ```
+## 🚀 Live Deployment
 
-Streamlit normally opens at `http://localhost:8501`.
+The California House Price Prediction application is deployed and accessible online.
+
+- 🌐 **Frontend (Streamlit):** [Launch Application](https://californiahousepriceprediction-rxripw4nsm3bwntvg8dxgm.streamlit.app/)
+- ⚙️ **Backend API (FastAPI):** [View API Documentation](https://california-house-price-prediction-1-uwu5.onrender.com/docs)
+- 💻 **GitHub Repository:** [View Source Code](https://github.com/2006181/California_House_Price_Prediction)
+
+### ✨ Try It Out
+
+1. Open the live frontend application.
+2. Enter the required house details to predict the estimated house price.
+3. Alternatively, upload a CSV file to generate predictions for multiple houses.
+4. Download the prediction results as a CSV file.
+
+**Note:** The backend is hosted on Render's free tier and may take a little time to respond after periods of inactivity.
 
 Keep both terminal processes running while using the app.
 
