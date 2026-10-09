@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # FastAPI backend URL
-API_URL = "https://california-house-price-prediction-1-uwu5.onrender.com/"
+API_URL = "https://california-house-price-prediction-1-uwu5.onrender.com"
 
 # Page title
 st.title("🏡 California House Price Prediction")
